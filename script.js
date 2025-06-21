@@ -92,10 +92,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             transactions.forEach(tx => {
                 const row = document.createElement('tr');
+                const categoryDisplay = tx.category === 'Expenses' 
+                    ? `<div><span class="category-badge ${tx.category.toLowerCase()}">${tx.category}</span><br><small class="deduction-source">From ${tx.source}</small></div>`
+                    : `<span class="category-badge ${tx.category.toLowerCase()}">${tx.category}</span>`;
+                
                 row.innerHTML = `
                     <td>${formatDate(tx.date)}</td>
-                    <td><span class="category-badge ${tx.category.toLowerCase()}">${tx.category}</span></td>
-                    <td>${tx.category === 'Expenses' ? `From ${tx.source}` : '-'}</td>
+                    <td>${categoryDisplay}</td>
+                    <td>-</td>
                     <td>${tx.remarks || '-'}</td>
                     <td>${formatCurrency(tx.amount)}</td>
                     <td><button class="btn btn-remove" data-id="${tx.id}">Remove</button></td>

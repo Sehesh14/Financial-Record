@@ -27,20 +27,24 @@
             <section class="card">
                 <h2>Add New Transaction</h2>
                 <form id="transaction-form">
-                    <div class="form-group">
-                        <label for="category">Category</label>
-                        <select id="category" name="category" required>
-                            <option value="Tithes">Tithes</option>
-                            <option value="Offering">Offering</option>
-                            <option value="Expenses">Expenses</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="expense-source-group" style="display: none;">
-                        <label for="expense-source">Deduct from</label>
-                        <select id="expense-source" name="expense-source">
-                            <option value="Tithes">Tithes</option>
-                            <option value="Offering">Offering</option>
-                        </select>
+                    <div class="form-group form-group-full">
+                        <div class="category-container">
+                            <div class="category-item">
+                                <label for="category">Category</label>
+                                <select id="category" name="category" required>
+                                    <option value="Tithes">Tithes</option>
+                                    <option value="Offering">Offering</option>
+                                    <option value="Expenses">Expenses</option>
+                                </select>
+                            </div>
+                            <div class="category-item" id="expense-source-group" style="display: none;">
+                                <label for="expense-source">Deduct from</label>
+                                <select id="expense-source" name="expense-source">
+                                    <option value="Tithes">Tithes</option>
+                                    <option value="Offering">Offering</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="amount">Amount (₱)</label>

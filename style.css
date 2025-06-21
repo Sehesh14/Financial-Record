@@ -238,6 +238,14 @@ h2 {
 .category-badge.offering { background-color: var(--blue-light); color: var(--blue-dark); }
 .category-badge.expenses { background-color: var(--red-light); color: var(--red-dark); }
 
+.deduction-source {
+    font-size: 11px;
+    color: #666;
+    margin-top: 4px;
+    display: block;
+    font-weight: 400;
+}
+
 .btn-remove {
     background-color: #feeef0;
     color: #f04438;
@@ -413,19 +421,12 @@ footer {
 
 @media (max-width: 992px) {
     .container {
-        max-width: 720px;
+        width: 100%;
     }
-
-    header {
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .header-text {
-        margin-left: 0;
-    }
-
     #transaction-form {
+        grid-template-columns: 1fr;
+    }
+     .category-container {
         grid-template-columns: 1fr;
     }
 }
@@ -491,4 +492,23 @@ footer {
     .transaction-table {
         font-size: 13px;
     }
-} 
+}
+
+.category-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.category-item {
+    display: flex;
+    flex-direction: column;
+}
+
+#transaction-form {
+    grid-template-columns: 1fr;
+}
+
+.category-container {
+    grid-template-columns: 1fr;
+}
