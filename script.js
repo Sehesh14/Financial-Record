@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevMonthBtn = document.getElementById('prev-month');
     const nextMonthBtn = document.getElementById('next-month');
     const clearMonthBtn = document.getElementById('clear-month');
+    const categorySelect = document.getElementById('category');
+    const expenseSourceGroup = document.getElementById('expense-source-group');
 
     // Summary elements
     const summaryPreviousBalanceEl = document.getElementById('summary-previous-balance');
@@ -44,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saveData(allData);
     };
 
-    const calculatePreviousBalance = (monthDate) => {
+    const calculatePreviousCategoryBalance = (monthDate, category) => {
         const allData = getAllData();
         const sortedMonthKeys = Object.keys(allData).sort((a, b) => {
             const [yA, mA] = a.split('-').map(Number);
@@ -53,18 +55,30 @@ document.addEventListener('DOMContentLoaded', () => {
             return mA - mB;
         });
 
-        let previousBalance = 0;
+        let previousCategoryBalance = 0;
         const currentMonthKey = getMonthKey(monthDate);
 
         for (const key of sortedMonthKeys) {
             if (key >= currentMonthKey) break;
             const transactions = allData[key];
-            const tithes = transactions.filter(t => t.category === 'Tithes').reduce((sum, t) => sum + t.amount, 0);
-            const offering = transactions.filter(t => t.category === 'Offering').reduce((sum, t) => sum + t.amount, 0);
-            const expenses = transactions.filter(t => t.category === 'Expenses').reduce((sum, t) => sum + t.amount, 0);
-            previousBalance += tithes + offering - expenses;
+            const income = transactions.filter(t => t.category === category).reduce((sum, t) => sum + t.amount, 0);
+            
+            let expenses = 0;
+            if (category === 'Tithes') {
+                expenses = transactions.filter(t => t.category === 'Expenses' && t.source === 'Tithes').reduce((sum, t) => sum + t.amount, 0);
+            } else if (category === 'Offering') {
+                expenses = transactions.filter(t => t.category === 'Expenses' && (t.source === 'Offering' || !t.source)).reduce((sum, t) => sum + t.amount, 0);
+            }
+
+            previousCategoryBalance += income - expenses;
         }
-        return previousBalance;
+        return previousCategoryBalance;
+    };
+
+    const calculatePreviousBalance = (monthDate) => {
+        const prevTithes = calculatePreviousCategoryBalance(monthDate, 'Tithes');
+        const prevOffering = calculatePreviousCategoryBalance(monthDate, 'Offering');
+        return prevTithes + prevOffering;
     };
 
     const formatCurrency = (amount) => `${CURRENCY}${amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
@@ -81,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 row.innerHTML = `
                     <td>${formatDate(tx.date)}</td>
                     <td><span class="category-badge ${tx.category.toLowerCase()}">${tx.category}</span></td>
-                    <td>-</td>
+                    <td>${tx.category === 'Expenses' ? `From ${tx.source}` : '-'}</td>
                     <td>${tx.remarks || '-'}</td>
                     <td>${formatCurrency(tx.amount)}</td>
                     <td><button class="btn btn-remove" data-id="${tx.id}">Remove</button></td>
@@ -94,23 +108,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateSummary = () => {
         const transactions = getTransactionsForMonth(currentMonth);
-        const previousBalance = calculatePreviousBalance(currentMonth);
+        
+        const previousTithesBalance = calculatePreviousCategoryBalance(currentMonth, 'Tithes');
+        const previousOfferingBalance = calculatePreviousCategoryBalance(currentMonth, 'Offering');
+        const previousBalance = previousTithesBalance + previousOfferingBalance;
 
         const tithes = transactions.filter(t => t.category === 'Tithes').reduce((sum, t) => sum + t.amount, 0);
         const offering = transactions.filter(t => t.category === 'Offering').reduce((sum, t) => sum + t.amount, 0);
-        const expenses = transactions.filter(t => t.category === 'Expenses').reduce((sum, t) => sum + t.amount, 0);
-        const currentMonthBalance = previousBalance + tithes + offering - expenses;
+
+        const expensesFromTithes = transactions.filter(t => t.category === 'Expenses' && t.source === 'Tithes').reduce((sum, t) => sum + t.amount, 0);
+        const expensesFromOffering = transactions.filter(t => t.category === 'Expenses' && t.source === 'Offering').reduce((sum, t) => sum + t.amount, 0);
+        const totalExpenses = expensesFromTithes + expensesFromOffering;
+
+        const tithesBalance = previousTithesBalance + tithes - expensesFromTithes;
+        const offeringBalance = previousOfferingBalance + offering - expensesFromOffering;
+        const currentMonthBalance = tithesBalance + offeringBalance;
 
         summaryPreviousBalanceEl.textContent = formatCurrency(previousBalance);
-        summaryTithesEl.textContent = formatCurrency(tithes);
-        balanceTithesEl.textContent = `Balance: ${formatCurrency(tithes)}`;
-        summaryOfferingEl.textContent = formatCurrency(offering);
-        balanceOfferingEl.textContent = `Balance: ${formatCurrency(offering)}`;
-        summaryExpensesEl.textContent = formatCurrency(expenses);
+        summaryTithesEl.textContent = formatCurrency(tithesBalance);
+        balanceTithesEl.textContent = `This month: ${formatCurrency(tithes)}`;
+        summaryOfferingEl.textContent = formatCurrency(offeringBalance);
+        balanceOfferingEl.textContent = `This month: ${formatCurrency(offering)}`;
+        summaryExpensesEl.textContent = formatCurrency(totalExpenses);
         summaryBalanceEl.textContent = formatCurrency(currentMonthBalance);
         
         reportMonthYearEl.textContent = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     };
+
+    categorySelect.addEventListener('change', (e) => {
+        if (e.target.value === 'Expenses') {
+            expenseSourceGroup.style.display = 'block';
+        } else {
+            expenseSourceGroup.style.display = 'none';
+        }
+    });
 
     transactionForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -118,13 +149,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const amount = parseFloat(e.target.amount.value);
         const remarks = e.target.remarks.value;
 
+        const newTransaction = {
+            id: Date.now(),
+            date: new Date().toISOString(),
+            category,
+            amount,
+            remarks
+        };
+
+        if (category === 'Expenses') {
+            const source = document.getElementById('expense-source').value;
+            newTransaction.source = source;
+        }
+
         if (amount > 0) {
-            const newTransaction = { id: Date.now(), date: new Date().toISOString(), category, amount, remarks };
             const transactions = getTransactionsForMonth(currentMonth);
             transactions.push(newTransaction);
             saveTransactionsForMonth(currentMonth, transactions);
             render();
             transactionForm.reset();
+            expenseSourceGroup.style.display = 'none';
         } else {
             alert('Please enter a valid amount.');
         }
@@ -201,24 +245,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const formatCurrencyForPdf = (amount) => `PHP ${amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
         
         const transactions = getTransactionsForMonth(currentMonth);
-        const previousBalance = calculatePreviousBalance(currentMonth);
-        const tithes = transactions.filter(t => t.category === 'Tithes').reduce((sum, t) => sum + t.amount, 0);
-        const offering = transactions.filter(t => t.category === 'Offering').reduce((sum, t) => sum + t.amount, 0);
-        const expenses = transactions.filter(t => t.category === 'Expenses').reduce((sum, t) => sum + t.amount, 0);
-        const totalBalance = previousBalance + tithes + offering - expenses;
+
+        const previousTithesBalance = calculatePreviousCategoryBalance(currentMonth, 'Tithes');
+        const previousOfferingBalance = calculatePreviousCategoryBalance(currentMonth, 'Offering');
+        const previousTotalBalance = previousTithesBalance + previousOfferingBalance;
+
+        const monthlyTithes = transactions.filter(t => t.category === 'Tithes').reduce((sum, t) => sum + t.amount, 0);
+        const monthlyOffering = transactions.filter(t => t.category === 'Offering').reduce((sum, t) => sum + t.amount, 0);
+
+        const expensesFromTithes = transactions.filter(t => t.category === 'Expenses' && t.source === 'Tithes').reduce((sum, t) => sum + t.amount, 0);
+        const expensesFromOffering = transactions.filter(t => t.category === 'Expenses' && t.source === 'Offering').reduce((sum, t) => sum + t.amount, 0);
+        const totalMonthlyExpenses = expensesFromTithes + expensesFromOffering;
+
+        const finalTithesBalance = previousTithesBalance + monthlyTithes - expensesFromTithes;
+        const finalOfferingBalance = previousOfferingBalance + monthlyOffering - expensesFromOffering;
+        const finalTotalBalance = finalTithesBalance + finalOfferingBalance;
 
         const summaryData = [
-            ['Previous Balance', formatCurrencyForPdf(previousBalance)],
-            ['Tithes', formatCurrencyForPdf(tithes)],
-            ['Offering', formatCurrencyForPdf(offering)],
-            ['Expenses', formatCurrencyForPdf(expenses)],
-            ['Total Balance', formatCurrencyForPdf(totalBalance)]
+            ['Previous Balance', formatCurrencyForPdf(previousTotalBalance)],
+            ['Tithes Balance', formatCurrencyForPdf(finalTithesBalance)],
+            ['Offering Balance', formatCurrencyForPdf(finalOfferingBalance)],
+            ['Total Expenses (This Month)', formatCurrencyForPdf(totalMonthlyExpenses)],
+            ['Total Balance', formatCurrencyForPdf(finalTotalBalance)]
         ];
 
         doc.autoTable({ startY: 45, head: [['Summary', 'Amount']], body: summaryData, theme: 'striped', headStyles: { fillColor: [106, 90, 249] } });
         
-        const tableData = transactions.map(tx => [formatDate(tx.date), tx.category, tx.remarks || '-', formatCurrencyForPdf(tx.amount)]);
-        doc.autoTable({ startY: doc.autoTable.previous.finalY + 10, head: [['Date', 'Category', 'Remarks', 'Amount']], body: tableData, theme: 'grid', headStyles: { fillColor: [106, 90, 249] } });
+        const tableData = transactions.map(tx => {
+            const allocation = tx.category === 'Expenses' ? `From ${tx.source}` : '-';
+            return [formatDate(tx.date), tx.category, allocation, tx.remarks || '-', formatCurrencyForPdf(tx.amount)];
+        });
+        doc.autoTable({ startY: doc.autoTable.previous.finalY + 10, head: [['Date', 'Category', 'Allocation', 'Remarks', 'Amount']], body: tableData, theme: 'grid', headStyles: { fillColor: [106, 90, 249] } });
 
         doc.save(`Financial-Report-${monthYear.replace(' ', '-')}.pdf`);
     });
