@@ -13,8 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const summaryPreviousBalanceEl = document.getElementById('summary-previous-balance');
     const summaryTithesEl = document.getElementById('summary-tithes');
     const balanceTithesEl = document.getElementById('balance-tithes');
-    const summaryOfferingEl = document.getElementById('summary-offering');
-    const balanceOfferingEl = document.getElementById('balance-offering');
+    const summaryMorningOfferingEl = document.getElementById('summary-morning-offering');
+    const balanceMorningOfferingEl = document.getElementById('balance-morning-offering');
+    const summaryYouthOfferingEl = document.getElementById('summary-youth-offering');
+    const balanceYouthOfferingEl = document.getElementById('balance-youth-offering');
     const summaryExpensesEl = document.getElementById('summary-expenses');
     const summaryBalanceEl = document.getElementById('summary-balance');
 
@@ -62,14 +64,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (key >= currentMonthKey) break;
             const transactions = allData[key];
             const income = transactions.filter(t => t.category === category).reduce((sum, t) => sum + t.amount, 0);
-            
             let expenses = 0;
             if (category === 'Tithes') {
                 expenses = transactions.filter(t => t.category === 'Expenses' && t.source === 'Tithes').reduce((sum, t) => sum + t.amount, 0);
-            } else if (category === 'Offering') {
-                expenses = transactions.filter(t => t.category === 'Expenses' && (t.source === 'Offering' || !t.source)).reduce((sum, t) => sum + t.amount, 0);
+            } else if (category === 'Morning Offering') {
+                expenses = transactions.filter(t => t.category === 'Expenses' && t.source === 'Morning Offering').reduce((sum, t) => sum + t.amount, 0);
+            } else if (category === 'Youth Offering') {
+                expenses = transactions.filter(t => t.category === 'Expenses' && t.source === 'Youth Offering').reduce((sum, t) => sum + t.amount, 0);
             }
-
             previousCategoryBalance += income - expenses;
         }
         return previousCategoryBalance;
@@ -77,12 +79,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const calculatePreviousBalance = (monthDate) => {
         const prevTithes = calculatePreviousCategoryBalance(monthDate, 'Tithes');
-        const prevOffering = calculatePreviousCategoryBalance(monthDate, 'Offering');
-        return prevTithes + prevOffering;
+        const prevMorning = calculatePreviousCategoryBalance(monthDate, 'Morning Offering');
+        const prevYouth = calculatePreviousCategoryBalance(monthDate, 'Youth Offering');
+        return prevTithes + prevMorning + prevYouth;
     };
 
     const formatCurrency = (amount) => `${CURRENCY}${amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
     const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    // Helper for PHP currency
+    const formatCurrencyForPdf = (amount) => `PHP ${amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
 
     const render = () => {
         const transactions = getTransactionsForMonth(currentMonth);
@@ -114,25 +120,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const transactions = getTransactionsForMonth(currentMonth);
         
         const previousTithesBalance = calculatePreviousCategoryBalance(currentMonth, 'Tithes');
-        const previousOfferingBalance = calculatePreviousCategoryBalance(currentMonth, 'Offering');
-        const previousBalance = previousTithesBalance + previousOfferingBalance;
+        const previousMorningOfferingBalance = calculatePreviousCategoryBalance(currentMonth, 'Morning Offering');
+        const previousYouthOfferingBalance = calculatePreviousCategoryBalance(currentMonth, 'Youth Offering');
+        const previousBalance = previousTithesBalance + previousMorningOfferingBalance + previousYouthOfferingBalance;
 
         const tithes = transactions.filter(t => t.category === 'Tithes').reduce((sum, t) => sum + t.amount, 0);
-        const offering = transactions.filter(t => t.category === 'Offering').reduce((sum, t) => sum + t.amount, 0);
+        const morningOffering = transactions.filter(t => t.category === 'Morning Offering').reduce((sum, t) => sum + t.amount, 0);
+        const youthOffering = transactions.filter(t => t.category === 'Youth Offering').reduce((sum, t) => sum + t.amount, 0);
 
         const expensesFromTithes = transactions.filter(t => t.category === 'Expenses' && t.source === 'Tithes').reduce((sum, t) => sum + t.amount, 0);
-        const expensesFromOffering = transactions.filter(t => t.category === 'Expenses' && t.source === 'Offering').reduce((sum, t) => sum + t.amount, 0);
-        const totalExpenses = expensesFromTithes + expensesFromOffering;
+        const expensesFromMorningOffering = transactions.filter(t => t.category === 'Expenses' && t.source === 'Morning Offering').reduce((sum, t) => sum + t.amount, 0);
+        const expensesFromYouthOffering = transactions.filter(t => t.category === 'Expenses' && t.source === 'Youth Offering').reduce((sum, t) => sum + t.amount, 0);
+        const totalExpenses = expensesFromTithes + expensesFromMorningOffering + expensesFromYouthOffering;
 
         const tithesBalance = previousTithesBalance + tithes - expensesFromTithes;
-        const offeringBalance = previousOfferingBalance + offering - expensesFromOffering;
-        const currentMonthBalance = tithesBalance + offeringBalance;
+        const morningOfferingBalance = previousMorningOfferingBalance + morningOffering - expensesFromMorningOffering;
+        const youthOfferingBalance = previousYouthOfferingBalance + youthOffering - expensesFromYouthOffering;
+        const currentMonthBalance = tithesBalance + morningOfferingBalance + youthOfferingBalance;
 
         summaryPreviousBalanceEl.textContent = formatCurrency(previousBalance);
         summaryTithesEl.textContent = formatCurrency(tithesBalance);
         balanceTithesEl.textContent = `This month: ${formatCurrency(tithes)}`;
-        summaryOfferingEl.textContent = formatCurrency(offeringBalance);
-        balanceOfferingEl.textContent = `This month: ${formatCurrency(offering)}`;
+        summaryMorningOfferingEl.textContent = formatCurrency(morningOfferingBalance);
+        balanceMorningOfferingEl.textContent = `This month: ${formatCurrency(morningOffering)}`;
+        summaryYouthOfferingEl.textContent = formatCurrency(youthOfferingBalance);
+        balanceYouthOfferingEl.textContent = `This month: ${formatCurrency(youthOffering)}`;
         summaryExpensesEl.textContent = formatCurrency(totalExpenses);
         summaryBalanceEl.textContent = formatCurrency(currentMonthBalance);
         
@@ -222,64 +234,127 @@ document.addEventListener('DOMContentLoaded', () => {
             return alert('PDF table library not loaded.');
         }
         const doc = new jsPDF();
-        
-        let logoDataUrl = null;
+        doc.setFont('times', '');
+
+        // Load left logo
+        let logoLeftDataUrl = null;
         try {
-            const r = await fetch('logo.png');
+            const r = await fetch('Logo.png');
             if (r.ok) {
                 const blob = await r.blob();
-                logoDataUrl = await new Promise(resolve => {
+                logoLeftDataUrl = await new Promise(resolve => {
                     const reader = new FileReader();
                     reader.onloadend = () => resolve(reader.result);
                     reader.readAsDataURL(blob);
                 });
             }
         } catch (e) {
-            console.error("Could not load logo for PDF.", e);
+            console.error("Could not load left logo for PDF.", e);
+        }
+        // Load right logo
+        let logoRightDataUrl = null;
+        try {
+            const r = await fetch('RCM_New logo.png');
+            if (r.ok) {
+                const blob = await r.blob();
+                logoRightDataUrl = await new Promise(resolve => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(blob);
+                });
+            }
+        } catch (e) {
+            console.error("Could not load right logo for PDF.", e);
         }
 
+        // Place RCM_New logo.png at the top right and Logo.png close to its lower left
+        if (logoRightDataUrl) doc.addImage(logoRightDataUrl, 'PNG', 170, 12, 24, 24);
+        if (logoLeftDataUrl) doc.addImage(logoLeftDataUrl, 'PNG', 165, 32, 18, 18);
+
+        // Header text (left-aligned)
+        doc.setFont('times', 'bold');
+        doc.text('JESUS CHRIST FOR YOU AND ME COMMUNITY CHURCH', 15, 20);
+        doc.text('ROOTED FOR CHRIST MINISTRY', 15, 26);
+        doc.setFont('times', 'normal');
+        doc.setFontSize(12);
+        doc.text('#28 Phase 3 Area D, Payatas B, Quezon City, Metro Manila, 1119', 15, 32);
+        doc.text('(02) 8253 6958', 15, 37);
+        doc.text('Sec. Reg No. C11201604692 (Under PFCCP)', 15, 42);
+        doc.text('Tin No. 009-243-998', 15, 47);
+        // Horizontal line
+        doc.setLineWidth(2);
+        doc.line(15, 54, 195, 54);
+        // 'Office of the Church Administrator' only below the line
+        doc.setFontSize(12);
+        doc.text('Office of the Church Administrator', 15, 60);
+
+        // Add extra vertical space before the title
+        let titleY = 70;
+        // Title
+        doc.setFont('times', 'bold');
+        doc.setFontSize(14);
+        doc.text('MONTHLY FINANCIAL REPORT', 105, titleY, { align: 'center' });
+        doc.setLineWidth(0.5);
+        doc.line(55, titleY + 2, 155, titleY + 2); // underline
+        doc.setFont('times', 'normal');
+        doc.setFontSize(12);
         const monthYear = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        doc.text(`Month of ${monthYear}`, 105, titleY + 15, { align: 'center' });
 
-        if (logoDataUrl) doc.addImage(logoDataUrl, 'PNG', 14, 15, 20, 20);
-
-        const textX = logoDataUrl ? 40 : 14;
-        doc.setFontSize(18).text(`Monthly Financial Report`, textX, 22);
-        doc.setFontSize(11).setTextColor(100).text(monthYear, textX, 29);
-
-        const formatCurrencyForPdf = (amount) => `PHP ${amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
-        
-        const transactions = getTransactionsForMonth(currentMonth);
-
-        const previousTithesBalance = calculatePreviousCategoryBalance(currentMonth, 'Tithes');
-        const previousOfferingBalance = calculatePreviousCategoryBalance(currentMonth, 'Offering');
-        const previousTotalBalance = previousTithesBalance + previousOfferingBalance;
-
-        const monthlyTithes = transactions.filter(t => t.category === 'Tithes').reduce((sum, t) => sum + t.amount, 0);
-        const monthlyOffering = transactions.filter(t => t.category === 'Offering').reduce((sum, t) => sum + t.amount, 0);
-
-        const expensesFromTithes = transactions.filter(t => t.category === 'Expenses' && t.source === 'Tithes').reduce((sum, t) => sum + t.amount, 0);
-        const expensesFromOffering = transactions.filter(t => t.category === 'Expenses' && t.source === 'Offering').reduce((sum, t) => sum + t.amount, 0);
-        const totalMonthlyExpenses = expensesFromTithes + expensesFromOffering;
-
-        const finalTithesBalance = previousTithesBalance + monthlyTithes - expensesFromTithes;
-        const finalOfferingBalance = previousOfferingBalance + monthlyOffering - expensesFromOffering;
-        const finalTotalBalance = finalTithesBalance + finalOfferingBalance;
-
-        const summaryData = [
-            ['Previous Balance', formatCurrencyForPdf(previousTotalBalance)],
-            ['Tithes Balance', formatCurrencyForPdf(finalTithesBalance)],
-            ['Offering Balance', formatCurrencyForPdf(finalOfferingBalance)],
-            ['Total Expenses (This Month)', formatCurrencyForPdf(totalMonthlyExpenses)],
-            ['Total Balance', formatCurrencyForPdf(finalTotalBalance)]
-        ];
-
-        doc.autoTable({ startY: 45, head: [['Summary', 'Amount']], body: summaryData, theme: 'striped', headStyles: { fillColor: [106, 90, 249] } });
-        
-        const tableData = transactions.map(tx => {
-            const allocation = tx.category === 'Expenses' ? `From ${tx.source}` : '-';
-            return [formatDate(tx.date), tx.category, allocation, tx.remarks || '-', formatCurrencyForPdf(tx.amount)];
+        // Add extra space before the first table
+        let summaryY = titleY + 30;
+        doc.setFontSize(11);
+        doc.setFont('times', 'bold');
+        doc.text('Last Month Summary Report', 15, summaryY);
+        doc.setFont('times', 'normal');
+        const prevMonth = new Date(currentMonth);
+        prevMonth.setMonth(prevMonth.getMonth() - 1);
+        const prevTithes = calculatePreviousCategoryBalance(prevMonth, 'Tithes');
+        const prevMorning = calculatePreviousCategoryBalance(prevMonth, 'Morning Offering');
+        const prevYouth = calculatePreviousCategoryBalance(prevMonth, 'Youth Offering');
+        doc.autoTable({
+            startY: summaryY + 4,
+            head: [["Tithes", "Morning Offering", "Youth Offering"]],
+            body: [[
+                formatCurrencyForPdf(prevTithes),
+                formatCurrencyForPdf(prevMorning),
+                formatCurrencyForPdf(prevYouth)
+            ]],
+            theme: 'grid',
+            headStyles: { fillColor: [255,255,255], textColor: [0,0,0], fontStyle: 'bold', halign: 'center', lineWidth: 0.5, lineColor: [0,0,0] },
+            bodyStyles: { halign: 'center', lineWidth: 0.5, lineColor: [0,0,0] },
+            styles: { fontSize: 11, cellPadding: 3, lineWidth: 0.5, lineColor: [0,0,0] }
         });
-        doc.autoTable({ startY: doc.autoTable.previous.finalY + 10, head: [['Date', 'Category', 'Allocation', 'Remarks', 'Amount']], body: tableData, theme: 'grid', headStyles: { fillColor: [106, 90, 249] } });
+
+        // This Month Detailed Report
+        let y = doc.lastAutoTable.finalY + 10;
+        doc.setFont('times', 'bold');
+        doc.text('This Month Detailed Report', 12, y);
+        doc.setFont('times', 'normal');
+        const transactions = getTransactionsForMonth(currentMonth);
+        const expenseRows = transactions.filter(tx => tx.category === 'Expenses').map(tx => [
+            formatDate(tx.date),
+            tx.source,
+            tx.remarks || '-',
+            formatCurrencyForPdf(tx.amount)
+        ]);
+        doc.autoTable({
+            startY: y + 4,
+            head: [["Date", "Category", "Remarks", "Amount"]],
+            body: expenseRows.length ? expenseRows : [["-", "-", "-", "-"]],
+            theme: 'grid',
+            headStyles: { fillColor: [255,255,255], textColor: [0,0,0], fontStyle: 'bold', halign: 'center', lineWidth: 0.5, lineColor: [0,0,0] },
+            bodyStyles: { halign: 'center', lineWidth: 0.5, lineColor: [0,0,0] },
+            styles: { fontSize: 11, cellPadding: 3, lineWidth: 0.5, lineColor: [0,0,0] }
+        });
+
+        // Signature lines
+        let signY = 270;
+        doc.setFontSize(11);
+        doc.text("________________________", 20, signY);
+        doc.text("________________________", 120, signY);
+        doc.text("Church Administration", 25, signY + 7);
+        doc.text("Church Accountant", 125, signY + 7);
 
         doc.save(`Financial-Report-${monthYear.replace(' ', '-')}.pdf`);
     });
